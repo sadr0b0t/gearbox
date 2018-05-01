@@ -1,0 +1,23 @@
+{
+  "name": "gearbox",
+  "version": "0.1.0",
+  "description": "OpenSCAD gearbox generator",
+  "main": "gearbox.scad",
+  "files": [
+    "gearbox.scad",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sadr0b0t/gearbox.git"
+  },
+  "keywords": ["openSCAD","gears", "gearbox"],
+  "author": "sadr0b0t",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/sadr0b0t/gearbox/issues"
+  },
+  "homepage": "https://github.com/sadr0b0t/gearbox"
+}
+
