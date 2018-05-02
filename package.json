@@ -8,6 +8,9 @@
     "README.md",
     "LICENSE"
   ],
+    "dependencies": {
+    "pd-gears": "^2.0.0"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/sadr0b0t/gearbox.git"
