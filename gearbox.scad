@@ -13,6 +13,7 @@ use <pd-gears/pd-gears.scad>
 // Положение шестеренок задается относительными углами поворота
 // 
 gb_gearbox(base=true, cover=true, gears=true,
+    mirror_x=true,
     tnum1=[9, 12, 12], tnum2=[47, 47, 47],
     cp=[1.5, 1.5, 1.5], pa=[20, 20, 20],
     holed1=[2, 2, 2],
@@ -21,7 +22,10 @@ gb_gearbox(base=true, cover=true, gears=true,
     a=[-25, 15, -15], stage1_c1=[0,0],
     h2_gap=1, bottom_gap=0, top_gap=1,
     base_dim=[108, 30], base_shift=[0, -5],
-    columns=[[0, -15], [49.5, -15], [49.5, 5]],
+    columns=[
+        [0, -15],
+        [49.5, -15], [49.5, 5],
+        [-49.5, -15], [-49.5, 5]],
     $fn=100);
 
 
@@ -256,8 +260,9 @@ module gb_stage(tnum1, tnum2,
         cp=1.5, pa=20,
         holed1=2, holed2=2, h1=3, h2=3,
         a=0, c1=[0,0], rot1=0, h2_gap=0,
+        mirror_x=true,
         $fn=90) {
-    translate([c1.x, c1.y, 0]) union() {
+    module _stage() {
         rotate([0,0,rot1]) gear(mm_per_tooth=cp, pressure_angle=pa,
             number_of_teeth=tnum1, thickness=h1, hole_diameter=holed1,
             center=false, $fn=$fn);
@@ -268,6 +273,22 @@ module gb_stage(tnum1, tnum2,
             gear(mm_per_tooth=cp, pressure_angle=pa,
                 number_of_teeth=tnum2, thickness=h2, hole_diameter=holed2,
                 center=false, $fn=$fn);
+        if(mirror_x && c1.x == 0) {
+            // шестеренка 1 находится на оси X - отражаем только 
+            // шестеренку 2
+            rotate([0, 0, 180-a]) translate([
+                    pitch_radius(mm_per_tooth=cp, number_of_teeth=tnum1)+
+                    pitch_radius(mm_per_tooth=cp, number_of_teeth=tnum2),
+                    0, h2_gap])
+                gear(mm_per_tooth=cp, pressure_angle=pa,
+                    number_of_teeth=tnum2, thickness=h2, hole_diameter=holed2,
+                    center=false, $fn=$fn);
+        }
+    }
+    translate([c1.x, c1.y, 0]) _stage();
+    if(mirror_x && c1.x != 0) {
+        // шестеренка 1 не на оси X - отражаем обе
+        mirror([1,0,0]) translate([c1.x, c1.y, 0]) _stage();
     }
 }
 
@@ -304,6 +325,7 @@ module gb_stage(tnum1, tnum2,
  * @param columns стойки с отверстиями под винты
  *     (3мм отверстие+2мм стенка). Массив: каждый элемент
  *     массива - пара [x,y] - координаты центра каждой стойки.
+ * @param mirror_x отразить все шестеренки, кроме начальной, по оси X
  * @param base рисовать основание (true/false)
  * @param cover рисовать крушку (true/false)
  * @param gears  рисовать шестеренки (true/false)
@@ -313,67 +335,98 @@ module gb_stage(tnum1, tnum2,
  */
 module gb_gearbox(tnum1, tnum2, cp, pa,
         holed1, holed2, h1, h2,
-         a, stage1_c1=[0,0],
-         h2_gap=1, bottom_gap=0, top_gap=1,
-         base_dim=[40, 40], base_shift=[0,0],
-         columns=[],
-         base=true, cover=true, gears=true,
-         print_error=0.1, $fn=100) {
+        a, stage1_c1=[0,0],
+        h2_gap=1, bottom_gap=0, top_gap=1,
+        base_dim=[40, 40], base_shift=[0,0],
+        columns=[],
+        mirror_x=true,
+        base=true, cover=true, gears=true,
+        print_error=0.1, $fn=100) {
     
-    // основа
-    color([.1, .2, .3]) if(base) {
-        c1 = gb_find_stage_centers1(stage_n=len(tnum1),
-                    tnum1=tnum1, tnum2=tnum2,
-                    cp=cp, a=a, stage1_c1=stage1_c1);
-        c2 = gb_find_stage_centers2(stage_n=2,
-                    tnum1=tnum1, tnum2=tnum2,
-                    cp=cp, a=a, stage1_c1=stage1_c1);
-        
-        // высота блока с шестеренками - без зазоров сверху и снизу,
-        // для последней ступеньки берем высоту более высокой шестеренки
-        stages_h = gb_stage_bottom(stage_n=len(tnum1)-1, h2=h2, h2_gap=h2_gap) +
-            (h1[len(tnum1)-1] > h2[len(tnum1)-1]+h2_gap ?
-                h1[len(tnum1)-1] : h2[len(tnum1)-1]+h2_gap);
-        
-        // дно
-        difference() {
-            translate([base_shift.x, base_shift.y, -1.5])
-                cube([base_dim.x, base_dim.y, 3], center=true);
+    // центры шестеренки 1 на всех ступенях
+    c1 = gb_find_stage_centers1(stage_n=len(tnum1),
+                tnum1=tnum1, tnum2=tnum2,
+                cp=cp, a=a, stage1_c1=stage1_c1);
+    // центры шестеренки 2 на всех ступенях
+    c2 = gb_find_stage_centers2(stage_n=2,
+                tnum1=tnum1, tnum2=tnum2,
+                cp=cp, a=a, stage1_c1=stage1_c1);
             
-            // отверстия под "колоннами"
-            for(col = columns) {
-                translate([col.x, col.y,-3-0.1]) cylinder(r=1.5, h=3+0.2);
-            }
+    // высота блока с шестеренками - без зазоров сверху и снизу,
+    // для последней ступеньки берем высоту более высокой шестеренки
+    stages_h = gb_stage_bottom(stage_n=len(tnum1)-1, h2=h2, h2_gap=h2_gap) +
+        (h1[len(tnum1)-1] > h2[len(tnum1)-1]+h2_gap ?
+            h1[len(tnum1)-1] : h2[len(tnum1)-1]+h2_gap);
             
-            // отверстие внутри подставки под ось шестеренки: высота подставки + 2мм
-            // дополинтельное вычитание ниже из самой подставки
-            for(i = [0 : len(tnum1)-1]) {
-                translate([c2[i].x, c2[i].y, -2])
-                    cylinder(r=holed2[i]/2, h=2.1, $fn=$fn);
-            }
-        }
-        
-        // подставки под шестеренки - под каждой 2й шестеренкой
-        // на ступеньке: цилиндр радиусом=радиус отверстия шестеренки+2мм
+    // подставки под шестеренки - под каждой 2й шестеренкой
+    // на ступеньке: цилиндр радиусом=радиус отверстия шестеренки+2мм
+    module _gear_stands() {
         for(i = [0 : len(tnum1)-1]) {
             difference() {
                 translate([c2[i].x, c2[i].y, 0])
-                    cylinder(r=holed2[i]/2+2,
-                        h=gb_stage_bottom(stage_n=i, h2=h2, h2_gap=h2_gap)+h2_gap+bottom_gap, $fn=$fn);
+                    cylinder(
+                        r=holed2[i]/2+2,
+                        h=gb_stage_bottom(
+                            stage_n=i, h2=h2, h2_gap=h2_gap)+h2_gap+bottom_gap, $fn=$fn);
                 
                 // отверстие внутри подставки под ось шестеренки: высота подставки + 2мм
                 // (дополнительное вычитание выше из самого дна)
                 translate([c2[i].x, c2[i].y, -0.1])
-                    cylinder(r=holed2[i]/2,
-                        h=gb_stage_bottom(stage_n=i, h2=h2, h2_gap=h2_gap)+h2_gap+bottom_gap+0.2, $fn=$fn);
+                    cylinder(
+                        r=holed2[i]/2,
+                        h=gb_stage_bottom(
+                            stage_n=i, h2=h2, h2_gap=h2_gap)+h2_gap+bottom_gap+0.2, $fn=$fn);
                 
                 // вычитаем внешний диаметр шестеренки 2 с предыдущей ступени
                 if(i >0) translate([c2[i-1].x, c2[i-1].y, -0.1])
                     cylinder(
                         r=outer_radius(mm_per_tooth=cp[i-1], number_of_teeth=tnum2[i-1], clearance=0)+0.2,
-                        h=gb_stage_bottom(stage_n=i, h2=h2, h2_gap=h2_gap)+h2_gap+bottom_gap+0.2, $fn=$fn);
+                        h=gb_stage_bottom(
+                            stage_n=i, h2=h2, h2_gap=h2_gap)+h2_gap+bottom_gap+0.2, $fn=$fn);
             }
         }
+    }
+    
+    // отверстия в основании (колонны не учитываем)
+    module _base_holes1() {
+        // несквозные отверстия в основании под оси шестеренок:
+        // высота подставки + 2мм
+        for(i = [0 : len(tnum1)-1]) {
+            translate([c2[i].x, c2[i].y, -2])
+                cylinder(r=holed2[i]/2, h=2.1, $fn=$fn);
+        }
+    }
+    
+    // отверстия в крышке (колонны не учитываем)
+    module _cover_holes1() {
+        // несквозные отверстия в крышке под оси шестеренок 
+        for(i = [0 : len(tnum1)-1]) {
+                translate([c2[i].x, c2[i].y, stages_h+bottom_gap+top_gap-0.1])
+                    cylinder(r=holed2[i]/2,
+                        h=(i<len(tnum1)-1? 2:3.1)+0.1, $fn=$fn);
+        }
+    }
+
+    // основание
+    color([.1, .2, .3]) if(base) {
+        // дно
+        difference() {
+            translate([base_shift.x, base_shift.y, -1.5])
+                cube([base_dim.x, base_dim.y, 3], center=true);
+            
+            // отверстия под подставками под шестеренки
+            _base_holes1();
+            if(mirror_x) mirror([1,0,0]) _base_holes1();
+            
+            // отверстия под "колоннами"
+            for(col = columns) {
+                translate([col.x, col.y,-3-0.1]) cylinder(r=1.5, h=3+0.2);
+            }
+        }
+        
+        // подставки под шестеренки
+        _gear_stands();
+        if(mirror_x) mirror([1,0,0]) _gear_stands();
         
         // "колонны": высота внутри редуктора + 2мм
         // внутри отверстие 3мм
@@ -390,11 +443,13 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
             // по центрам шестеренок по всей высоте
             for(i = [0 : len(tnum1)-1]) {
                 translate([c1[i].x, c1[i].y, -0.1]) cylinder(
-                    r=outer_radius(mm_per_tooth=cp[i], number_of_teeth=tnum1[i], clearance=0)+0.2,
+                    r=outer_radius(
+                        mm_per_tooth=cp[i], number_of_teeth=tnum1[i], clearance=0)+0.2,
                     h=stages_h+bottom_gap+top_gap+2+0.2,
                     $fn=$fn);
                 translate([c2[i].x, c2[i].y, -0.1]) cylinder(
-                    r=outer_radius(mm_per_tooth=cp[i], number_of_teeth=tnum2[i], clearance=0)+0.2,
+                    r=outer_radius(
+                        mm_per_tooth=cp[i], number_of_teeth=tnum2[i], clearance=0)+0.2,
                     h=stages_h+bottom_gap+top_gap+2+0.2,
                     $fn=$fn);
             }
@@ -403,22 +458,14 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
     
     // крышка
     color([.3, .2, .1]) if(cover) {
-        c1 = gb_find_stage_centers1(stage_n=len(tnum1),
-                tnum1=tnum1, tnum2=tnum2,
-                cp=cp, a=a, stage1_c1=stage1_c1);
-        c2 = gb_find_stage_centers2(stage_n=2,
-                tnum1=tnum1, tnum2=tnum2,
-                cp=cp, a=a, stage1_c1=stage1_c1);
-        
-        // для последней ступеньки берем высоту более высокой шестеренки
-        stages_h = gb_stage_bottom(stage_n=len(tnum1)-1, h2=h2, h2_gap=h2_gap) +
-            (h1[len(tnum1)-1] > h2[len(tnum1)-1]+h2_gap ?
-                h1[len(tnum1)-1] : h2[len(tnum1)-1]+h2_gap);
-        
         // крышка
         difference() {
             translate([base_shift.x, base_shift.y, stages_h+bottom_gap+top_gap+1.5])
                 cube([base_dim.x, base_dim.y, 3], center=true);
+            
+            // отверстия для шестеренок
+            _cover_holes1();
+            if(mirror_x) mirror([1,0,0]) _cover_holes1();
             
             // выемки для "колонн"
             for(col = columns) {
@@ -432,13 +479,6 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
                 translate([col.x, col.y, stages_h+bottom_gap+top_gap-0.1])
                     cylinder(r=1.5, h=3+0.2);
             }
-        
-            // отверстия под шестеренками 
-            for(i = [0 : len(tnum1)-1]) {
-                    translate([c2[i].x, c2[i].y, stages_h+bottom_gap+top_gap-0.1])
-                        cylinder(r=holed2[i]/2,
-                            h=(i<len(tnum1)-1? 2:3.1)+0.1, $fn=$fn);
-            }
         }
     }
     
@@ -450,10 +490,9 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
                     cp=cp[i], pa=pa[i],
                     holed1=holed1[i], holed2=holed2[i], h1=h1[i], h2=h2[i],
                     a=a[i],
-                    c1=gb_find_stage_centers1(stage_n=len(tnum1),
-                        tnum1=tnum1, tnum2=tnum2,
-                        cp=cp, a=a, stage1_c1=stage1_c1)[i],
+                    c1=c1[i],
                     h2_gap=h2_gap,
+                    mirror_x=mirror_x,
                     $fn=$fn);
         }
     }
