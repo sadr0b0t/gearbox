@@ -406,6 +406,24 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
                         h=(i<len(tnum1)-1? 2:3.1)+0.1, $fn=$fn);
         }
     }
+    
+    // срезы с колонн: вычитаем из колонн цилиндры
+    // диаметром с шестеренки по центрам шестеренок
+    // по всей высоте
+    module _column_cutoffs() {
+        for(i = [0 : len(tnum1)-1]) {
+            translate([c1[i].x, c1[i].y, -0.1]) cylinder(
+                r=outer_radius(
+                    mm_per_tooth=cp[i], number_of_teeth=tnum1[i], clearance=0)+0.2,
+                h=stages_h+bottom_gap+top_gap+2+0.2,
+                $fn=$fn);
+            translate([c2[i].x, c2[i].y, -0.1]) cylinder(
+                r=outer_radius(
+                    mm_per_tooth=cp[i], number_of_teeth=tnum2[i], clearance=0)+0.2,
+                h=stages_h+bottom_gap+top_gap+2+0.2,
+                $fn=$fn);
+        }
+    }
 
     // основание
     color([.1, .2, .3]) if(base) {
@@ -441,18 +459,8 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
             
             // вычитаем из колонн цилиндры диаметром с шестеренки
             // по центрам шестеренок по всей высоте
-            for(i = [0 : len(tnum1)-1]) {
-                translate([c1[i].x, c1[i].y, -0.1]) cylinder(
-                    r=outer_radius(
-                        mm_per_tooth=cp[i], number_of_teeth=tnum1[i], clearance=0)+0.2,
-                    h=stages_h+bottom_gap+top_gap+2+0.2,
-                    $fn=$fn);
-                translate([c2[i].x, c2[i].y, -0.1]) cylinder(
-                    r=outer_radius(
-                        mm_per_tooth=cp[i], number_of_teeth=tnum2[i], clearance=0)+0.2,
-                    h=stages_h+bottom_gap+top_gap+2+0.2,
-                    $fn=$fn);
-            }
+            _column_cutoffs();
+            if(mirror_x) mirror([1,0,0]) _column_cutoffs();
         }
     }
     
@@ -469,9 +477,8 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
             
             // выемки для "колонн"
             for(col = columns) {
-                translate([col.x, col.y, stages_h+bottom_gap+top_gap-0.1]) difference() {
+                translate([col.x, col.y, stages_h+bottom_gap+top_gap-0.1])
                     cylinder(r=3.5+print_error, h=2+0.1);
-                }
             }
             
             // сквозные отверстия под "колоннами"
