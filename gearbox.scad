@@ -15,6 +15,7 @@ use <pd-gears/pd-gears.scad>
 gb_gearbox(base=true, cover=true, gears=true,
     mirror_x=true, mirror_y=false,
     printed_rods=false,
+    exit_base=true, exit_cover=false,
     tnum1=[9, 12, 12], tnum2=[47, 47, 47],
     cp=[1.5, 1.5, 1.5], pa=[20, 20, 20],
     holed1=[2, 2, 2],
@@ -333,6 +334,12 @@ module gb_stage(tnum1, tnum2,
  * @param printed_rods рисовать стержни для шестеренок для печати вместе
  *     с основанием вместо отверстий для отдельных (металлических) осей.
  *     (по умолчанию: false)
+ * @param exit_base в основании сквозное отверстие на оси
+ *     2й шестеренки последней ступени
+ *     (по умолчанию: false)
+ * @param exit_cover в крышке сквозное отверстие на оси
+ *     2й шестеренки последней ступени
+ *     (по умолчанию: false)
  * @param base рисовать основание (true/false)
  * @param cover рисовать крушку (true/false)
  * @param gears  рисовать шестеренки (true/false)
@@ -348,6 +355,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
         columns=[],
         mirror_x=true, mirror_y=false,
         printed_rods=false,
+        exit_base=false, exit_cover=false,
         base=true, cover=true, gears=true,
         print_error=0.1, $fn=100) {
     
@@ -411,10 +419,13 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
     module _base_holes1() {
         if(!printed_rods) {
             // несквозные отверстия в основании под оси шестеренок:
-            // высота подставки + 2мм
+            // высота подставки + 2мм;
+            // на шестеренке 2 последней ступени сквозное отверстие,
+            // если exit_base=true
             for(i = [0 : len(tnum1)-1]) {
-                translate([c2[i].x, c2[i].y, -2])
-                    cylinder(r=holed2[i]/2, h=2.1, $fn=$fn);
+                translate([c2[i].x, c2[i].y, (i<len(tnum1)-1 || !exit_base ? -2 : -3.1)])
+                    cylinder(r=holed2[i]/2, 
+                        h=(i<len(tnum1)-1 || !exit_base ? 2 : 3.1)+0.1, $fn=$fn);
             }
         }
     }
@@ -422,11 +433,13 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
     // отверстия в крышке (колонны не учитываем)
     module _cover_holes1() {
         if(!printed_rods) {
-            // несквозные отверстия в крышке под оси шестеренок
+            // несквозные отверстия в крышке под оси шестеренок;
+            // на шестеренке 2 последней ступени сквозное отверстие,
+            // если exit_cover=true
             for(i = [0 : len(tnum1)-1]) {
                     translate([c2[i].x, c2[i].y, stages_h+bottom_gap+top_gap-0.1])
                         cylinder(r=holed2[i]/2,
-                            h=(i<len(tnum1)-1? 2:3.1)+0.1, $fn=$fn);
+                            h=(i<len(tnum1)-1 || !exit_cover ? 2 : 3.1)+0.1, $fn=$fn);
             }
         }
     }
