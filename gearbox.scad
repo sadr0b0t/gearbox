@@ -13,7 +13,7 @@ use <pd-gears/pd-gears.scad>
 // Положение шестеренок задается относительными углами поворота
 // 
 gb_gearbox(base=true, cover=true, gears=true,
-    mirror_x=true,
+    mirror_x=true, mirror_y=false,
     tnum1=[9, 12, 12], tnum2=[47, 47, 47],
     cp=[1.5, 1.5, 1.5], pa=[20, 20, 20],
     holed1=[2, 2, 2],
@@ -254,13 +254,15 @@ function gb_stage_bottom(stage_n, h2, h2_gap=0) =
  * @param rot1 угол поворота шестеренки 1 вокруг центра
  *     (полезно для смещения зубцов)
  * @param h2_gap отступ по оси Z под шестеренкой 2 относительно шестеренки 1
+ * @param mirror_x отразить все шестеренки, кроме начальной, по оси X
+ * @param mirror_y шестренеки, отраженные по X, рисовать отраженными по Y
  * @param $fn детализация отверстий внутри шестеренок
  */
 module gb_stage(tnum1, tnum2,
         cp=1.5, pa=20,
         holed1=2, holed2=2, h1=3, h2=3,
         a=0, c1=[0,0], rot1=0, h2_gap=0,
-        mirror_x=true,
+        mirror_x=true, mirror_y=false,
         $fn=90) {
     module _stage() {
         rotate([0,0,rot1]) gear(mm_per_tooth=cp, pressure_angle=pa,
@@ -276,7 +278,7 @@ module gb_stage(tnum1, tnum2,
         if(mirror_x && c1.x == 0) {
             // шестеренка 1 находится на оси X - отражаем только 
             // шестеренку 2
-            rotate([0, 0, 180-a]) translate([
+            rotate([0, 0, (mirror_y?180+a:180-a)]) translate([
                     pitch_radius(mm_per_tooth=cp, number_of_teeth=tnum1)+
                     pitch_radius(mm_per_tooth=cp, number_of_teeth=tnum2),
                     0, h2_gap])
@@ -288,7 +290,7 @@ module gb_stage(tnum1, tnum2,
     translate([c1.x, c1.y, 0]) _stage();
     if(mirror_x && c1.x != 0) {
         // шестеренка 1 не на оси X - отражаем обе
-        mirror([1,0,0]) translate([c1.x, c1.y, 0]) _stage();
+        mirror([0, (mirror_y?1:0), 0]) mirror([1, 0, 0]) translate([c1.x, c1.y, 0]) _stage();
     }
 }
 
@@ -326,6 +328,7 @@ module gb_stage(tnum1, tnum2,
  *     (3мм отверстие+2мм стенка). Массив: каждый элемент
  *     массива - пара [x,y] - координаты центра каждой стойки.
  * @param mirror_x отразить все шестеренки, кроме начальной, по оси X
+ * @param mirror_y шестренеки, отраженные по X, рисовать отраженными по Y
  * @param base рисовать основание (true/false)
  * @param cover рисовать крушку (true/false)
  * @param gears  рисовать шестеренки (true/false)
@@ -339,7 +342,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
         h2_gap=1, bottom_gap=0, top_gap=1,
         base_dim=[40, 40], base_shift=[0,0],
         columns=[],
-        mirror_x=true,
+        mirror_x=true, mirror_y=false,
         base=true, cover=true, gears=true,
         print_error=0.1, $fn=100) {
     
@@ -434,7 +437,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
             
             // отверстия под подставками под шестеренки
             _base_holes1();
-            if(mirror_x) mirror([1,0,0]) _base_holes1();
+            if(mirror_x) mirror([0, (mirror_y?1:0), 0]) mirror([1,0,0]) _base_holes1();
             
             // отверстия под "колоннами"
             for(col = columns) {
@@ -444,7 +447,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
         
         // подставки под шестеренки
         _gear_stands();
-        if(mirror_x) mirror([1,0,0]) _gear_stands();
+        if(mirror_x) mirror([0, (mirror_y?1:0), 0]) mirror([1,0,0]) _gear_stands();
         
         // "колонны": высота внутри редуктора + 2мм
         // внутри отверстие 3мм
@@ -460,7 +463,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
             // вычитаем из колонн цилиндры диаметром с шестеренки
             // по центрам шестеренок по всей высоте
             _column_cutoffs();
-            if(mirror_x) mirror([1,0,0]) _column_cutoffs();
+            if(mirror_x) mirror([0, (mirror_y?1:0), 0]) mirror([1,0,0]) _column_cutoffs();
         }
     }
     
@@ -473,7 +476,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
             
             // отверстия для шестеренок
             _cover_holes1();
-            if(mirror_x) mirror([1,0,0]) _cover_holes1();
+            if(mirror_x) mirror([0, (mirror_y?1:0), 0]) mirror([1,0,0]) _cover_holes1();
             
             // выемки для "колонн"
             for(col = columns) {
@@ -499,7 +502,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
                     a=a[i],
                     c1=c1[i],
                     h2_gap=h2_gap,
-                    mirror_x=mirror_x,
+                    mirror_x=mirror_x, mirror_y=mirror_y,
                     $fn=$fn);
         }
     }
