@@ -14,6 +14,7 @@ use <pd-gears/pd-gears.scad>
 // 
 gb_gearbox(base=true, cover=true, gears=true,
     mirror_x=true, mirror_y=false,
+    printed_rods=false,
     tnum1=[9, 12, 12], tnum2=[47, 47, 47],
     cp=[1.5, 1.5, 1.5], pa=[20, 20, 20],
     holed1=[2, 2, 2],
@@ -329,6 +330,9 @@ module gb_stage(tnum1, tnum2,
  *     массива - пара [x,y] - координаты центра каждой стойки.
  * @param mirror_x отразить все шестеренки, кроме начальной, по оси X
  * @param mirror_y шестренеки, отраженные по X, рисовать отраженными по Y
+ * @param printed_rods рисовать стержни для шестеренок для печати вместе
+ *     с основанием вместо отверстий для отдельных (металлических) осей.
+ *     (по умолчанию: false)
  * @param base рисовать основание (true/false)
  * @param cover рисовать крушку (true/false)
  * @param gears  рисовать шестеренки (true/false)
@@ -343,6 +347,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
         base_dim=[40, 40], base_shift=[0,0],
         columns=[],
         mirror_x=true, mirror_y=false,
+        printed_rods=false,
         base=true, cover=true, gears=true,
         print_error=0.1, $fn=100) {
     
@@ -366,19 +371,31 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
     module _gear_stands() {
         for(i = [0 : len(tnum1)-1]) {
             difference() {
-                translate([c2[i].x, c2[i].y, 0])
+                translate([c2[i].x, c2[i].y, 0]) union() {
                     cylinder(
                         r=holed2[i]/2+2,
                         h=gb_stage_bottom(
                             stage_n=i, h2=h2, h2_gap=h2_gap)+h2_gap+bottom_gap, $fn=$fn);
+                    
+                    if(printed_rods) {
+                        // ось шестеренки - добавляем к подставке на высоту шестеренки
+                        translate([0, 0, gb_stage_bottom(
+                                stage_n=i, h2=h2, h2_gap=h2_gap)+h2_gap+bottom_gap])
+                            cylinder(
+                                r=holed2[i]/2-print_error,
+                                h=h2[i]+(i<len(tnum1)-1 ? h1[i+1] : 0));
+                    }
+                }
                 
-                // отверстие внутри подставки под ось шестеренки: высота подставки + 2мм
-                // (дополнительное вычитание выше из самого дна)
-                translate([c2[i].x, c2[i].y, -0.1])
-                    cylinder(
-                        r=holed2[i]/2,
-                        h=gb_stage_bottom(
-                            stage_n=i, h2=h2, h2_gap=h2_gap)+h2_gap+bottom_gap+0.2, $fn=$fn);
+                if(!printed_rods) {
+                    // отверстие внутри подставки под ось шестеренки: высота подставки + 2мм
+                    // (дополнительное вычитание из самого дна)
+                    translate([c2[i].x, c2[i].y, -0.1])
+                        cylinder(
+                            r=holed2[i]/2,
+                            h=gb_stage_bottom(
+                                stage_n=i, h2=h2, h2_gap=h2_gap)+h2_gap+bottom_gap+0.2, $fn=$fn);
+                }
                 
                 // вычитаем внешний диаметр шестеренки 2 с предыдущей ступени
                 if(i >0) translate([c2[i-1].x, c2[i-1].y, -0.1])
@@ -392,21 +409,25 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
     
     // отверстия в основании (колонны не учитываем)
     module _base_holes1() {
-        // несквозные отверстия в основании под оси шестеренок:
-        // высота подставки + 2мм
-        for(i = [0 : len(tnum1)-1]) {
-            translate([c2[i].x, c2[i].y, -2])
-                cylinder(r=holed2[i]/2, h=2.1, $fn=$fn);
+        if(!printed_rods) {
+            // несквозные отверстия в основании под оси шестеренок:
+            // высота подставки + 2мм
+            for(i = [0 : len(tnum1)-1]) {
+                translate([c2[i].x, c2[i].y, -2])
+                    cylinder(r=holed2[i]/2, h=2.1, $fn=$fn);
+            }
         }
     }
     
     // отверстия в крышке (колонны не учитываем)
     module _cover_holes1() {
-        // несквозные отверстия в крышке под оси шестеренок 
-        for(i = [0 : len(tnum1)-1]) {
-                translate([c2[i].x, c2[i].y, stages_h+bottom_gap+top_gap-0.1])
-                    cylinder(r=holed2[i]/2,
-                        h=(i<len(tnum1)-1? 2:3.1)+0.1, $fn=$fn);
+        if(!printed_rods) {
+            // несквозные отверстия в крышке под оси шестеренок
+            for(i = [0 : len(tnum1)-1]) {
+                    translate([c2[i].x, c2[i].y, stages_h+bottom_gap+top_gap-0.1])
+                        cylinder(r=holed2[i]/2,
+                            h=(i<len(tnum1)-1? 2:3.1)+0.1, $fn=$fn);
+            }
         }
     }
     
@@ -474,7 +495,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
             translate([base_shift.x, base_shift.y, stages_h+bottom_gap+top_gap+1.5])
                 cube([base_dim.x, base_dim.y, 3], center=true);
             
-            // отверстия для шестеренок
+            // отверстия для осей шестеренок
             _cover_holes1();
             if(mirror_x) mirror([0, (mirror_y?1:0), 0]) mirror([1,0,0]) _cover_holes1();
             

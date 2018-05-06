@@ -19,7 +19,8 @@ https://github.com/sadr0b0t/pd-gears
 use <gearbox/gearbox.scad>
 
 gb_gearbox(base=true, cover=true, gears=true,
-    mirror_x=true,
+    mirror_x=true, mirror_y=false,
+    printed_rods=false,
     tnum1=[9, 12, 12], tnum2=[47, 47, 47],
     cp=[1.5, 1.5, 1.5], pa=[20, 20, 20],
     holed1=[2, 2, 2],
