@@ -31,6 +31,7 @@ gb_gearbox(base=true, cover=true, gears=true,
     h2_gap=1, bottom_gap=0, top_gap=1,
     base_points=[[-54, -20], [-54, 10], [54, 10], [54, -20]],
     cover_points=[[-54, -20], [-54, 10], [54, 10], [54, -20]],
+    base_h=3, cover_h=3,
     columns=[
         [0, -15],
         [49.5, -15], [49.5, 5],

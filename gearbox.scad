@@ -25,6 +25,7 @@ gb_gearbox(base=true, cover=true, gears=true,
     h2_gap=1, bottom_gap=0, top_gap=1,
     base_points=[[-54, -20], [-54, 10], [54, 10], [54, -20]],
     cover_points=[[-54, -20], [-54, 10], [54, 10], [54, -20]],
+    base_h=3, cover_h=3,
     columns=[
         [0, -15],
         [49.5, -15], [49.5, 5],
@@ -327,6 +328,8 @@ module gb_stage(tnum1, tnum2,
  *      (по умолчанию: 1)
  * @param base_points точки многоугольника для основания
  * @param base_points точки многоугольника для крышки
+ * @param base_h толщина основания
+ * @param cover_h толщина крышки
  * @param columns стойки с отверстиями под винты
  *     (3мм отверстие+2мм стенка). Массив: каждый элемент
  *     массива - пара [x,y] - координаты центра каждой стойки.
@@ -354,6 +357,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
         h2_gap=1, bottom_gap=0, top_gap=1,
         base_points=[[-20, -20], [20, -20], [20, 20], [-20, 20]],
         cover_points=[[-20, -20], [20, -20], [20, 20], [-20, 20]],
+        base_h=3, cover_h=3,
         columns=[],
         mirror_x=true, mirror_y=false,
         printed_rods=false,
@@ -425,9 +429,9 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
             // на шестеренке 2 последней ступени сквозное отверстие,
             // если exit_base=true
             for(i = [0 : len(tnum1)-1]) {
-                translate([c2[i].x, c2[i].y, (i<len(tnum1)-1 || !exit_base ? -2 : -3.1)])
+                translate([c2[i].x, c2[i].y, (i<len(tnum1)-1 || !exit_base ? -2 : -base_h-0.1)])
                     cylinder(r=holed2[i]/2, 
-                        h=(i<len(tnum1)-1 || !exit_base ? 2 : 3.1)+0.1, $fn=$fn);
+                        h=(i<len(tnum1)-1 || !exit_base ? 2 : base_h+0.1)+0.1, $fn=$fn);
             }
         }
     }
@@ -441,7 +445,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
             for(i = [0 : len(tnum1)-1]) {
                     translate([c2[i].x, c2[i].y, stages_h+bottom_gap+top_gap-0.1])
                         cylinder(r=holed2[i]/2,
-                            h=(i<len(tnum1)-1 || !exit_cover ? 2 : 3.1)+0.1, $fn=$fn);
+                            h=(i<len(tnum1)-1 || !exit_cover ? 2 : cover_h+0.1)+0.1, $fn=$fn);
             }
         }
     }
@@ -468,7 +472,8 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
     color([.1, .2, .3]) if(base) {
         // дно
         difference() {
-            translate([0, 0, -3]) linear_extrude(height=3) polygon(base_points);
+            translate([0, 0, -base_h])
+                linear_extrude(height=base_h) polygon(base_points);
             
             // отверстия под подставками под шестеренки
             _base_holes1();
@@ -476,7 +481,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
             
             // отверстия под "колоннами"
             for(col = columns) {
-                translate([col.x, col.y,-3-0.1]) cylinder(r=1.5, h=3+0.2);
+                translate([col.x, col.y, -base_h-0.1]) cylinder(r=1.5, h=base_h+0.2);
             }
         }
         
@@ -507,7 +512,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
         // крышка
         difference() {
             translate([0, 0, stages_h+bottom_gap+top_gap])
-                linear_extrude(height=3) polygon(cover_points);
+                linear_extrude(height=cover_h) polygon(cover_points);
             
             // отверстия для осей шестеренок
             _cover_holes1();
@@ -522,7 +527,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
             // сквозные отверстия под "колоннами"
             for(col = columns) {
                 translate([col.x, col.y, stages_h+bottom_gap+top_gap-0.1])
-                    cylinder(r=1.5, h=3+0.2);
+                    cylinder(r=1.5, h=cover_h+0.2);
             }
         }
     }
