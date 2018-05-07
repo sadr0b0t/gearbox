@@ -23,7 +23,8 @@ gb_gearbox(base=true, cover=true, gears=true,
     h1=[9, 5, 5], h2=[3, 3, 3],
     a=[-25, 15, -15], stage1_c1=[0,0],
     h2_gap=1, bottom_gap=0, top_gap=1,
-    base_dim=[108, 30], base_shift=[0, -5],
+    base_points=[[-54, -20], [-54, 10], [54, 10], [54, -20]],
+    cover_points=[[-54, -20], [-54, 10], [54, 10], [54, -20]],
     columns=[
         [0, -15],
         [49.5, -15], [49.5, 5],
@@ -324,8 +325,8 @@ module gb_stage(tnum1, tnum2,
  *      (по умолчанию: 0)
  * @param top_gap отступ сверху от крышки ректора
  *      (по умолчанию: 1)
- * @param base_dim размер основания: [dim_x, dim_y]
- * @param base_shift смещение основания: [shift_x, shift_y]
+ * @param base_points точки многоугольника для основания
+ * @param base_points точки многоугольника для крышки
  * @param columns стойки с отверстиями под винты
  *     (3мм отверстие+2мм стенка). Массив: каждый элемент
  *     массива - пара [x,y] - координаты центра каждой стойки.
@@ -351,7 +352,8 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
         holed1, holed2, h1, h2,
         a, stage1_c1=[0,0],
         h2_gap=1, bottom_gap=0, top_gap=1,
-        base_dim=[40, 40], base_shift=[0,0],
+        base_points=[[-20, -20], [20, -20], [20, 20], [-20, 20]],
+        cover_points=[[-20, -20], [20, -20], [20, 20], [-20, 20]],
         columns=[],
         mirror_x=true, mirror_y=false,
         printed_rods=false,
@@ -466,8 +468,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
     color([.1, .2, .3]) if(base) {
         // дно
         difference() {
-            translate([base_shift.x, base_shift.y, -1.5])
-                cube([base_dim.x, base_dim.y, 3], center=true);
+            translate([0, 0, -3]) linear_extrude(height=3) polygon(base_points);
             
             // отверстия под подставками под шестеренки
             _base_holes1();
@@ -505,8 +506,8 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
     color([.3, .2, .1]) if(cover) {
         // крышка
         difference() {
-            translate([base_shift.x, base_shift.y, stages_h+bottom_gap+top_gap+1.5])
-                cube([base_dim.x, base_dim.y, 3], center=true);
+            translate([0, 0, stages_h+bottom_gap+top_gap])
+                linear_extrude(height=3) polygon(cover_points);
             
             // отверстия для осей шестеренок
             _cover_holes1();
