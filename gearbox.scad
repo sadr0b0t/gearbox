@@ -18,10 +18,10 @@ gb_gearbox(base=true, cover=true, gears=true,
     exit_base=true, exit_cover=false,
     tnum1=[9, 12, 12], tnum2=[47, 47, 47],
     cp=[1.5, 1.5, 1.5], pa=[20, 20, 20],
-    holed1=[2, 2, 2],
-    holed2=[2, 2, 2],
+    holed1=[2, 2, 2], holed2=[2, 2, 2],
     h1=[9, 5, 5], h2=[3, 3, 3],
     a=[-25, 15, -15], stage1_c1=[0,0],
+    rot2=[0, 0, 0],
     h2_gap=1, bottom_gap=0, top_gap=1,
     base_points=[[-54, -20], [-54, 10], [54, 10], [54, -20]],
     cover_points=[[-54, -20], [-54, 10], [54, 10], [54, -20]],
@@ -255,8 +255,8 @@ function gb_stage_bottom(stage_n, h2, h2_gap=0) =
  * @param h2 высота шестеренки 2
  * @param a угол поворота шестеренки 2 вокруг цента шестеренки 1
  * @param c1 координаты центра шестеренки 1
- * @param rot1 угол поворота шестеренки 1 вокруг центра
- *     (полезно для смещения зубцов)
+ * @param rot2 угол поворота шестеренки 2 вокруг центра
+ *     (может быть полезно при подгонке стыковки зубцов)
  * @param h2_gap отступ по оси Z под шестеренкой 2 относительно шестеренки 1
  * @param mirror_x отразить все шестеренки, кроме начальной, по оси X
  * @param mirror_y шестренеки, отраженные по X, рисовать отраженными по Y
@@ -265,18 +265,18 @@ function gb_stage_bottom(stage_n, h2, h2_gap=0) =
 module gb_stage(tnum1, tnum2,
         cp=1.5, pa=20,
         holed1=2, holed2=2, h1=3, h2=3,
-        a=0, c1=[0,0], rot1=0, h2_gap=0,
+        a=0, c1=[0,0], rot2=0, h2_gap=0,
         mirror_x=true, mirror_y=false,
         $fn=90) {
     module _stage() {
-        rotate([0,0,rot1]) gear(mm_per_tooth=cp, pressure_angle=pa,
+        gear(mm_per_tooth=cp, pressure_angle=pa,
             number_of_teeth=tnum1, thickness=h1, hole_diameter=holed1,
             center=false, $fn=$fn);
         rotate([0, 0, a]) translate([
                 pitch_radius(mm_per_tooth=cp, number_of_teeth=tnum1)+
                 pitch_radius(mm_per_tooth=cp, number_of_teeth=tnum2),
                 0, h2_gap])
-            gear(mm_per_tooth=cp, pressure_angle=pa,
+            rotate([0,0,rot2]) gear(mm_per_tooth=cp, pressure_angle=pa,
                 number_of_teeth=tnum2, thickness=h2, hole_diameter=holed2,
                 center=false, $fn=$fn);
         if(mirror_x && c1.x == 0) {
@@ -286,7 +286,7 @@ module gb_stage(tnum1, tnum2,
                     pitch_radius(mm_per_tooth=cp, number_of_teeth=tnum1)+
                     pitch_radius(mm_per_tooth=cp, number_of_teeth=tnum2),
                     0, h2_gap])
-                gear(mm_per_tooth=cp, pressure_angle=pa,
+                rotate([0,0,-rot2]) gear(mm_per_tooth=cp, pressure_angle=pa,
                     number_of_teeth=tnum2, thickness=h2, hole_diameter=holed2,
                     center=false, $fn=$fn);
         }
@@ -321,6 +321,10 @@ module gb_stage(tnum1, tnum2,
  * @param a угол поворота центра шестеренки 2 вокруг центра шестеренки 1
  *     (массив значений для каждой ступени)
  * @param stage1_c1 координаты центра шестеренки 1 на ступени 1
+ * @param rot2 угол поворота шестеренки 2 вокруг своей оси
+ *     (может быть полезно при подгонке стыковки зубцов)
+ *     (массив значений для каждой ступени)
+ *     (по умолчанию: пустой массив [])
  * @param h2_gap отступ по оси Z под шестеренкой 2 относительно шестеренки 1 (по умолчанию: 1)
  * @param bottom_gap отступ снизу от основания ректора
  *      (по умолчанию: 0)
@@ -353,7 +357,7 @@ module gb_stage(tnum1, tnum2,
  */
 module gb_gearbox(tnum1, tnum2, cp, pa,
         holed1, holed2, h1, h2,
-        a, stage1_c1=[0,0],
+        a, stage1_c1=[0,0], rot2=[],
         h2_gap=1, bottom_gap=0, top_gap=1,
         base_points=[[-20, -20], [20, -20], [20, 20], [-20, 20]],
         cover_points=[[-20, -20], [20, -20], [20, 20], [-20, 20]],
@@ -539,8 +543,8 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
                 gb_stage(tnum1=tnum1[i], tnum2=tnum2[i],
                     cp=cp[i], pa=pa[i],
                     holed1=holed1[i], holed2=holed2[i], h1=h1[i], h2=h2[i],
-                    a=a[i],
-                    c1=c1[i],
+                    a=a[i], c1=c1[i],
+                    rot2=(i < len(rot2) ? rot2[i]:0),
                     h2_gap=h2_gap,
                     mirror_x=mirror_x, mirror_y=mirror_y,
                     $fn=$fn);
