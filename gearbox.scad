@@ -30,6 +30,7 @@ gb_gearbox(base=true, cover=true, gears=true,
         [0, -15],
         [49.5, -15], [49.5, 5],
         [-49.5, -15], [-49.5, 5]],
+    base_color=[0.8, 0.5, 0.9], cover_color=[0.5, 0.7, 0.9], gears_color=[1, 1, 0.4],
     $fn=100);
 
 
@@ -349,8 +350,11 @@ module gb_stage(tnum1, tnum2,
  *     2й шестеренки последней ступени
  *     (по умолчанию: false)
  * @param base рисовать основание (true/false)
- * @param cover рисовать крушку (true/false)
+ * @param cover рисовать крышку (true/false)
  * @param gears  рисовать шестеренки (true/false)
+ * @param base_color цвет основания (предпросмотр)
+ * @param cover_color цвет основания (предпросмотр)
+ * @param gears_color цвет шестеренок (предпросмотр)
  * @param print_error компенсация погрешности 3д-печати для стыкующихся
  *     элементов
  * @param $fn детализация цилиндрических стоек и отверстий
@@ -367,6 +371,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
         printed_rods=false,
         exit_base=false, exit_cover=false,
         base=true, cover=true, gears=true,
+        base_color=[0.8, 0.5, 0.9], cover_color=[0.5, 0.7, 0.9], gears_color=[1, 1, 0.4],
         print_error=0.1, $fn=100) {
     
     // центры шестеренки 1 на всех ступенях
@@ -473,7 +478,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
     }
 
     // основание
-    color([.1, .2, .3]) if(base) {
+    color(base_color) if(base) {
         // дно
         difference() {
             translate([0, 0, -base_h])
@@ -512,7 +517,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
     }
     
     // крышка
-    color([.3, .2, .1]) if(cover) {
+    color(cover_color) if(cover) {
         // крышка
         difference() {
             translate([0, 0, stages_h+bottom_gap+top_gap])
@@ -537,7 +542,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
     }
     
     // шестеренки
-    if(gears) {
+    color(gears_color) if(gears) {
         for(i = [0 : len(tnum1)-1]) {
             translate([0,0, gb_stage_bottom(stage_n=i, h2=h2, h2_gap=h2_gap)+bottom_gap])
                 gb_stage(tnum1=tnum1[i], tnum2=tnum2[i],

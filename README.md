@@ -36,6 +36,7 @@ gb_gearbox(base=true, cover=true, gears=true,
         [0, -15],
         [49.5, -15], [49.5, 5],
         [-49.5, -15], [-49.5, 5]],
+    base_color=[0.8, 0.5, 0.9], cover_color=[0.5, 0.7, 0.9], gears_color=[1, 1, 0.4],
     $fn=100);
 ~~~
 
