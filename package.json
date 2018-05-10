@@ -15,7 +15,7 @@
     "type": "git",
     "url": "https://github.com/sadr0b0t/gearbox.git"
   },
-  "keywords": ["openSCAD","gears", "gearbox"],
+  "keywords": ["OpenSCAD", "gears", "gearbox"],
   "author": "sadr0b0t",
   "license": "MIT",
   "bugs": {

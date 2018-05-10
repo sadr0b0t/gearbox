@@ -33,7 +33,16 @@ gb_gearbox(base=true, cover=true, gears=true,
     base_color=[0.8, 0.5, 0.9], cover_color=[0.5, 0.7, 0.9], gears_color=[1, 1, 0.4],
     $fn=100);
 
-
+// все шестеренки отдельно
+for(i=[0:3]) {
+    translate([i*30-40, 40, 0])
+        gb_gear(tnum1=[9, 12, 12], tnum2=[47, 47, 47],
+            cp=[1.5, 1.5, 1.5], pa=[20, 20, 20],
+            holed1=[2, 2, 2], holed2=[2, 2, 2],
+            h1=[9, 5, 5], h2=[3, 3, 3],
+            rot2=[0, 0, 0],
+            index=i);
+}
 
 /**
  * Найти координаты центра второй шестеренки на ступени редуктора.
@@ -299,7 +308,6 @@ module gb_stage(tnum1, tnum2,
     }
 }
 
-
 /**
  * Многоступенчатый плоский редуктор.
  * 
@@ -355,8 +363,8 @@ module gb_stage(tnum1, tnum2,
  * @param base_color цвет основания (предпросмотр)
  * @param cover_color цвет основания (предпросмотр)
  * @param gears_color цвет шестеренок (предпросмотр)
- * @param print_error компенсация погрешности 3д-печати для стыкующихся
- *     элементов
+ * @param print_error компенсация погрешности 3д-печати
+ *     для стыкующихся элементов
  * @param $fn детализация цилиндрических стоек и отверстий
  */
 module gb_gearbox(tnum1, tnum2, cp, pa,
@@ -372,7 +380,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
         exit_base=false, exit_cover=false,
         base=true, cover=true, gears=true,
         base_color=[0.8, 0.5, 0.9], cover_color=[0.5, 0.7, 0.9], gears_color=[1, 1, 0.4],
-        print_error=0.1, $fn=100) {
+        print_error=0, $fn=100) {
     
     // центры шестеренки 1 на всех ступенях
     c1 = gb_find_stage_centers1(stage_n=len(tnum1),
@@ -556,3 +564,84 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
         }
     }
 }
+
+/**
+ * Нарисовать отдельную шестеренку редуктора.
+ * Первая и последняя шестеренки - одинарные,
+ * все остальные промежуточные - сдвоенные.
+ *
+ *   stage-n.gear-1 - 1я шестеренка ступени n
+ *   stage-n.gear-2 - 2я шестеренка ступени n
+ * 
+ * Шестеренки нумеруем следующим образом:
+ *   0: stage-1.gear-1 (одинарная)
+ *   1: stage-1.gear-2+stage-2.gear-1 (сдвоенная)
+ *   2: stage-2.gear-2+stage-3.gear-1 (сдвоенная)
+ *   3: stage-3.gear-2+stage-4.gear-1 (сдвоенная)
+ * ...
+ *   n-1: stage-(n-1).gear-2+stage-n.gear-1 (сдвоенная)
+ *   n: stage-n.gear-2 (одинарная)
+ * 
+ * @param index номер шестеренки
+ *     (0 - шестеренка 1 1й ступени, n - шестеренка 2 ступений n).
+ * @param tnum1 количество зубцов на шестеренке 1
+ *     (массив значений для каждой ступени)
+ * @param tnum2 количество зубцов на шестеренке 2
+ *     (массив значений для каждой ступени)
+ * @param cp circular pitch
+ *     (массив значений для каждой ступени)
+ * @param pa pressure angle
+ *     (массив значений для каждой ступени)
+ * @param holed1 диаметр отверстия на шестеренке 1
+ *     (массив значений для каждой ступени)
+ * @param holed2 диаметр отверстия на шестеренке 2
+ *     (массив значений для каждой ступени)
+ * @param h1 высота шестеренки 1
+ *     (массив значений для каждой ступени)
+ * @param h2 высота шестеренки 2
+ *     (массив значений для каждой ступени)
+ * @param rot2 угол поворота шестеренки 2 вокруг своей оси
+ *     (может быть полезно при подгонке стыковки зубцов)
+ *     (массив значений для каждой ступени)
+ *     (по умолчанию: пустой массив [])
+ * @param $fn детализация отверстий внутри шестеренок
+ *
+ */
+module gb_gear(index,
+        tnum1, tnum2, cp, pa,
+        holed1, holed2, h1, h2,
+        rot2=[],
+        $fn=90) {
+    if(index == 0) {
+        // шестеренка 1 на ступени 1
+        // tnum1[0]
+        gear(mm_per_tooth=cp[0], pressure_angle=pa[0],
+            number_of_teeth=tnum1[0], thickness=h1[0],
+            hole_diameter=holed1[0],
+            center=false, $fn=$fn);
+    } else if(index < len(tnum1)) {
+        // tnum2[0] + tnum1[1]
+        // tnum2[index-1] + tnum1[index]
+        // шестеренка 2 на ступени index-1
+        rotate([0, 0, index-1 < len(rot2) ? rot2[index-1]:0])
+            gear(mm_per_tooth=cp[index-1], pressure_angle=pa[index-1],
+                number_of_teeth=tnum2[index-1], thickness=h2[index-1],
+                hole_diameter=holed2[index-1],
+                center=false, $fn=$fn);
+        // шестеренка 1 на ступени index
+        translate([0, 0, h2[index-1]])
+            gear(mm_per_tooth=cp[index], pressure_angle=pa[index],
+                number_of_teeth=tnum1[index], thickness=h1[index],
+                hole_diameter=holed1[index],
+                center=false, $fn=$fn);
+    } else if(index == len(tnum1)) {
+        // шестеренка 2 на ступени n
+        // tnum2[index-1]
+        gear(mm_per_tooth=cp[index-1], pressure_angle=pa[index-1],
+            number_of_teeth=tnum2[index-1], thickness=h2[index-1],
+            hole_diameter=holed2[index-1],
+            center=false, $fn=$fn);
+    }
+}
+
+
