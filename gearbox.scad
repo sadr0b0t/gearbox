@@ -31,7 +31,7 @@ gb_gearbox(base=true, cover=true, gears=true,
         [49.5, -15], [49.5, 5],
         [-49.5, -15], [-49.5, 5]],
     base_color=[0.8, 0.5, 0.9], cover_color=[0.5, 0.7, 0.9], gears_color=[1, 1, 0.4],
-    $fn=100);
+    print_error=0.1, $fn=100);
 
 // все шестеренки отдельно
 for(i=[0:3]) {
@@ -41,6 +41,7 @@ for(i=[0:3]) {
             holed1=[2, 2, 2], holed2=[2, 2, 2],
             h1=[9, 5, 5], h2=[3, 3, 3],
             rot2=[0, 0, 0],
+            print_error=0.1, $fn=100,
             index=i);
 }
 
@@ -269,7 +270,9 @@ function gb_stage_bottom(stage_n, h2, h2_gap=0) =
  *     (может быть полезно при подгонке стыковки зубцов)
  * @param h2_gap отступ по оси Z под шестеренкой 2 относительно шестеренки 1
  * @param mirror_x отразить все шестеренки, кроме начальной, по оси X
- * @param mirror_y шестренеки, отраженные по X, рисовать отраженными по Y
+ * @param mirror_y шестренки, отраженные по X, рисовать отраженными по Y
+ * @param print_error компенсация погрешности 3д-печати для отверстий
+ *     внутри шестеренок
  * @param $fn детализация отверстий внутри шестеренок
  */
 module gb_stage(tnum1, tnum2,
@@ -277,17 +280,18 @@ module gb_stage(tnum1, tnum2,
         holed1=2, holed2=2, h1=3, h2=3,
         a=0, c1=[0,0], rot2=0, h2_gap=0,
         mirror_x=true, mirror_y=false,
+        print_error=0,
         $fn=90) {
     module _stage() {
         gear(mm_per_tooth=cp, pressure_angle=pa,
-            number_of_teeth=tnum1, thickness=h1, hole_diameter=holed1,
+            number_of_teeth=tnum1, thickness=h1, hole_diameter=holed1+print_error,
             center=false, $fn=$fn);
         rotate([0, 0, a]) translate([
                 pitch_radius(mm_per_tooth=cp, number_of_teeth=tnum1)+
                 pitch_radius(mm_per_tooth=cp, number_of_teeth=tnum2),
                 0, h2_gap])
             rotate([0,0,rot2]) gear(mm_per_tooth=cp, pressure_angle=pa,
-                number_of_teeth=tnum2, thickness=h2, hole_diameter=holed2,
+                number_of_teeth=tnum2, thickness=h2, hole_diameter=holed2+print_error,
                 center=false, $fn=$fn);
         if(mirror_x && c1.x == 0) {
             // шестеренка 1 находится на оси X - отражаем только 
@@ -297,7 +301,7 @@ module gb_stage(tnum1, tnum2,
                     pitch_radius(mm_per_tooth=cp, number_of_teeth=tnum2),
                     0, h2_gap])
                 rotate([0,0,-rot2]) gear(mm_per_tooth=cp, pressure_angle=pa,
-                    number_of_teeth=tnum2, thickness=h2, hole_diameter=holed2,
+                    number_of_teeth=tnum2, thickness=h2, hole_diameter=holed2+print_error,
                     center=false, $fn=$fn);
         }
     }
@@ -423,7 +427,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
                     // (дополнительное вычитание из самого дна)
                     translate([c2[i].x, c2[i].y, -0.1])
                         cylinder(
-                            r=holed2[i]/2,
+                            r=holed2[i]/2+print_error,
                             h=gb_stage_bottom(
                                 stage_n=i, h2=h2, h2_gap=h2_gap)+h2_gap+bottom_gap+0.2, $fn=$fn);
                 }
@@ -431,7 +435,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
                 // вычитаем внешний диаметр шестеренки 2 с предыдущей ступени
                 if(i >0) translate([c2[i-1].x, c2[i-1].y, -0.1])
                     cylinder(
-                        r=outer_radius(mm_per_tooth=cp[i-1], number_of_teeth=tnum2[i-1], clearance=0)+0.2,
+                        r=outer_radius(mm_per_tooth=cp[i-1], number_of_teeth=tnum2[i-1], clearance=0)+0.2+print_error,
                         h=gb_stage_bottom(
                             stage_n=i, h2=h2, h2_gap=h2_gap)+h2_gap+bottom_gap+0.2, $fn=$fn);
             }
@@ -447,7 +451,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
             // если exit_base=true
             for(i = [0 : len(tnum1)-1]) {
                 translate([c2[i].x, c2[i].y, (i<len(tnum1)-1 || !exit_base ? -2 : -base_h-0.1)])
-                    cylinder(r=holed2[i]/2, 
+                    cylinder(r=holed2[i]/2+print_error,
                         h=(i<len(tnum1)-1 || !exit_base ? 2 : base_h+0.1)+0.1, $fn=$fn);
             }
         }
@@ -461,7 +465,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
             // если exit_cover=true
             for(i = [0 : len(tnum1)-1]) {
                     translate([c2[i].x, c2[i].y, stages_h+bottom_gap+top_gap-0.1])
-                        cylinder(r=holed2[i]/2,
+                        cylinder(r=holed2[i]/2+print_error,
                             h=(i<len(tnum1)-1 || !exit_cover ? 2 : cover_h+0.1)+0.1, $fn=$fn);
             }
         }
@@ -475,12 +479,12 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
             translate([c1[i].x, c1[i].y, -0.1]) cylinder(
                 r=outer_radius(
                     mm_per_tooth=cp[i], number_of_teeth=tnum1[i], clearance=0)+0.2,
-                h=stages_h+bottom_gap+top_gap+2+0.2,
+                h=stages_h+bottom_gap+top_gap+2+0.2+print_error,
                 $fn=$fn);
             translate([c2[i].x, c2[i].y, -0.1]) cylinder(
                 r=outer_radius(
                     mm_per_tooth=cp[i], number_of_teeth=tnum2[i], clearance=0)+0.2,
-                h=stages_h+bottom_gap+top_gap+2+0.2,
+                h=stages_h+bottom_gap+top_gap+2+0.2+print_error,
                 $fn=$fn);
         }
     }
@@ -498,7 +502,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
             
             // отверстия под "колоннами"
             for(col = columns) {
-                translate([col.x, col.y, -base_h-0.1]) cylinder(r=1.5, h=base_h+0.2);
+                translate([col.x, col.y, -base_h-0.1]) cylinder(r=1.5+print_error, h=base_h+0.2);
             }
         }
         
@@ -507,13 +511,13 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
         if(mirror_x) mirror([0, (mirror_y?1:0), 0]) mirror([1,0,0]) _gear_stands();
         
         // "колонны": высота внутри редуктора + 2мм
-        // внутри отверстие 3мм
+        // внутри отверстие 3мм (для винтов)
         difference() {
             for(col = columns) {
                 translate([col.x, col.y, 0]) difference() {
                     cylinder(r=3.5-print_error, h=stages_h+bottom_gap+top_gap+2);
                     translate([0,0,-0.1])
-                        cylinder(r=1.5, h=stages_h+bottom_gap+top_gap+2+0.2);
+                        cylinder(r=1.5+print_error, h=stages_h+bottom_gap+top_gap+2+0.2);
                 }
             }
             
@@ -541,10 +545,10 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
                     cylinder(r=3.5+print_error, h=2+0.1);
             }
             
-            // сквозные отверстия под "колоннами"
+            // сквозные отверстия под "колоннами" (для винтов)
             for(col = columns) {
                 translate([col.x, col.y, stages_h+bottom_gap+top_gap-0.1])
-                    cylinder(r=1.5, h=cover_h+0.2);
+                    cylinder(r=1.5+print_error, h=cover_h+0.2);
             }
         }
     }
@@ -560,7 +564,7 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
                     rot2=(i < len(rot2) ? rot2[i]:0),
                     h2_gap=h2_gap,
                     mirror_x=mirror_x, mirror_y=mirror_y,
-                    $fn=$fn);
+                    print_error=print_error, $fn=$fn);
         }
     }
 }
@@ -604,20 +608,22 @@ module gb_gearbox(tnum1, tnum2, cp, pa,
  *     (может быть полезно при подгонке стыковки зубцов)
  *     (массив значений для каждой ступени)
  *     (по умолчанию: пустой массив [])
+ * @param print_error компенсация погрешности 3д-печати для отверстий
+ *     внутри шестеренок
  * @param $fn детализация отверстий внутри шестеренок
- *
  */
 module gb_gear(index,
         tnum1, tnum2, cp, pa,
         holed1, holed2, h1, h2,
         rot2=[],
+        print_error=0,
         $fn=90) {
     if(index == 0) {
         // шестеренка 1 на ступени 1
         // tnum1[0]
         gear(mm_per_tooth=cp[0], pressure_angle=pa[0],
             number_of_teeth=tnum1[0], thickness=h1[0],
-            hole_diameter=holed1[0],
+            hole_diameter=holed1[0]+print_error,
             center=false, $fn=$fn);
     } else if(index < len(tnum1)) {
         // tnum2[0] + tnum1[1]
@@ -626,20 +632,20 @@ module gb_gear(index,
         rotate([0, 0, index-1 < len(rot2) ? rot2[index-1]:0])
             gear(mm_per_tooth=cp[index-1], pressure_angle=pa[index-1],
                 number_of_teeth=tnum2[index-1], thickness=h2[index-1],
-                hole_diameter=holed2[index-1],
+                hole_diameter=holed2[index-1]+print_error,
                 center=false, $fn=$fn);
         // шестеренка 1 на ступени index
         translate([0, 0, h2[index-1]])
             gear(mm_per_tooth=cp[index], pressure_angle=pa[index],
                 number_of_teeth=tnum1[index], thickness=h1[index],
-                hole_diameter=holed1[index],
+                hole_diameter=holed1[index]+print_error,
                 center=false, $fn=$fn);
     } else if(index == len(tnum1)) {
         // шестеренка 2 на ступени n
         // tnum2[index-1]
         gear(mm_per_tooth=cp[index-1], pressure_angle=pa[index-1],
             number_of_teeth=tnum2[index-1], thickness=h2[index-1],
-            hole_diameter=holed2[index-1],
+            hole_diameter=holed2[index-1]+print_error,
             center=false, $fn=$fn);
     }
 }
